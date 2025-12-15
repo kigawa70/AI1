@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>動的RSSニュースリーダー with Gemini API</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        #category-select button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .news-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+        .news-item h3 { margin-top: 0; }
+        .tags { font-size: 0.9em; color: #555; margin-top: 5px; }
+        .loading { color: orange; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>📰 カテゴリ別ニュース</h1>
+    
+    <div id="category-select">
+        <button onclick="fetchNews('tech')">テクノロジー</button>
+        <button onclick="fetchNews('business')">ビジネス</button>
+        <button onclick="fetchNews('entertainment')">エンタメ</button>
+    </div>
+
+    <hr>
+    
+    <h2 id="current-category">カテゴリを選択してください</h2>
+    <div id="news-list">
+        </div>
+
+    <script>
+        /**
+         * 選択されたカテゴリのニュースをサーバーから取得し、表示を更新する
+         * @param {string} categoryKey サーバーAPIに対応するカテゴリキー
+         */
+        async function fetchNews(categoryKey) {
+            const newsListElement = document.getElementById('news-list');
+            const currentCategoryElement = document.getElementById('current-category');
+            
+            // 画面表示に至るまでのロジック:
+            // 1. 画面の初期化とローディング表示
+            currentCategoryElement.textContent = `カテゴリ: ${categoryKey} (読み込み中...)`;
+            newsListElement.innerHTML = '<p class="loading">ニュースとAIタグを生成中...</p>'; // ローディング表示
+
+            try {
+                // 2. サーバーAPIを呼び出す (カテゴリ変更から表示に至るまでの核)
+                // このAPI呼び出しで、サーバーはRSS取得、パース、Gemini API呼び出しを行う
+                const response = await fetch(`/api/news/${categoryKey}`);
+                
+                if (!response.ok) {
+                    throw new Error('サーバーエラー: ニュースの取得に失敗しました');
+                }
+                
+                const data = await response.json();
+                
+                // 3. ニュース一覧のHTMLを構築
+                let newsHtml = '';
+                data.news.forEach(item => {
+                    newsHtml += `
+                        <div class="news-item">
+                            <h3><a href="${item.link}" target="_blank">${item.title}</a></h3>
+                            <div class="tags">🏷️ AIタグ: ${item.aiTags}</div>
+                            <small>${new Date(item.pubDate).toLocaleDateString()}</small>
+                        </div>
+                    `;
+                });
+
+                // 4. 画面を更新
+                currentCategoryElement.textContent = `カテゴリ: ${data.category}`;
+                newsListElement.innerHTML = newsHtml;
+
+            } catch (error) {
+                console.error("ニュース取得エラー:", error);
+                newsListElement.innerHTML = `<p style="color: red;">エラー: ニュースの読み込み中に問題が発生しました (${error.message})</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
